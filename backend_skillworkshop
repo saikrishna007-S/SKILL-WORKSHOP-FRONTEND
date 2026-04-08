@@ -1,0 +1,112 @@
+Here is a backend design for FSAD‑PS41 that pairs with your React frontend, using Node.js + Express + MongoDB (you can adapt this for Spring Boot if needed).
+
+1. Tech stack (backend)
+Framework: Node.js + Express (REST API).
+
+Database: MongoDB (via Mongoose) for User, Workshop, Session, Registration, Material.
+
+Auth: JWT for login/session management.
+
+Hosting: Run locally or deploy on Render/Heroku.
+
+2. Folder structure (backend)
+text
+backend/
+├── models/
+│   ├── User.js
+│   ├── Workshop.js
+│   ├── Session.js
+│   ├── Registration.js
+│   └── Material.js
+├── routes/
+│   ├── auth.js
+│   ├── workshops.js
+│   ├── sessions.js
+│   ├── registrations.js
+│   └── materials.js
+├── controllers/
+│   ├── authController.js
+│   ├── workshopController.js
+│   ├── sessionController.js
+│   ├── registrationController.js
+│   └── materialController.js
+├── middleware/
+│   └── auth.js         // protect routes
+├── .env
+├── server.js
+└── package.json
+This structure is clean and matches how learning‑platform backends are usually built.
+
+3. Example model: Workshop.js
+js
+// models/Workshop.js
+const mongoose = require("mongoose");
+
+const workshopSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String },
+  category: { type: String, required: true },
+  level: { type: String, enum: ["Beginner", "Intermediate", "Advanced"] },
+  price: { type: Number, default: 0 },
+  maxParticipants: { type: Number },
+  status: { type: String, default: "upcoming" },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+}, { timestamps: true });
+
+module.exports = mongoose.model("Workshop", workshopSchema);
+Repeat similar models for Session, Registration, and Material.
+
+4. Example controller: createWorkshop (admin)
+js
+// controllers/workshopController.js
+const Workshop = require("../models/Workshop");
+
+exports.createWorkshop = async (req, res) => {
+  const { title, description, category, level, price, maxParticipants } = req.body;
+
+  try {
+    const workshop = new Workshop({
+      title,
+      description,
+      category,
+      level,
+      price,
+      maxParticipants,
+      createdBy: req.user.id,   // from JWT middleware
+    });
+
+    await workshop.save();
+    res.status(201).json(workshop);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+Link this in a route like:
+
+js
+// routes/workshops.js
+const express = require("express");
+const { createWorkshop, getWorkshops } = require("../controllers/workshopController");
+
+const router = express.Router();
+
+router.post("/", createWorkshop);   // POST /api/workshops
+router.get("/", getWorkshops);      // GET /api/workshops
+
+module.exports = router;
+This matches standard REST‑API design for workshop management.
+
+5. Auth flow (JWT)
+POST /auth/login → verify email/password, generate accessToken.
+
+POST /auth/register → create User (role: "admin" or "user").
+
+Auth middleware checks Authorization: Bearer <token> on protected routes.
+
+6. Connecting to your React frontend
+React calls axios like:
+
+js
+axios.get("/api/workshops");       // all workshops
+axios.post("/api/workshops", data); // create workshop (admin only)
+Use environment variables (REACT_APP_API=http://localhost:5000) in .env in the frontend
